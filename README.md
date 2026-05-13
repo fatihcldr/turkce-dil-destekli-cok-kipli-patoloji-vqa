@@ -60,10 +60,6 @@ pip install -r requirements.txt
 
 `.env` dosyası oluştur:
 ```
-GEMINI_API_KEY=your_key_here
-```
-
-Google AI Studio üzerinden ücretsiz key: https://aistudio.google.com
 
 ## Eğitim
 
