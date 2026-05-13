@@ -43,7 +43,7 @@ pathvqa-tr/
 ├── backend/
 │   ├── main.py           # FastAPI uygulama
 │   ├── inference.py      # Model yükleme ve tahmin
-│   └── gemini.py         # Gemini 1.5 Flash entegrasyonu
+│   └── nlg.py         # Gemini 1.5 Flash entegrasyonu
 ├── frontend/
 │   └── index.html        # Tek dosya web arayüzü
 ├── notebooks/
