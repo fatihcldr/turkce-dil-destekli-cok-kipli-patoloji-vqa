@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PathVQA · TR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #080c0f;
+  --surface:   #0d1318;
+  --card:      #111820;
+  --border:    #1e2d38;
+  --border-hi: #2a4055;
+  --text:      #dde8f0;
+  --muted:     #5a7a8f;
+  --accent:    #00c8a0;
+  --accent-dim:#007a63;
+  --accent-glow: rgba(0,200,160,0.12);
+  --danger:    #e05050;
+  --warn:      #e0a050;
+  --yes-color: #00c8a0;
+  --no-color:  #e05050;
+  --mono:      'JetBrains Mono', monospace;
+  --head:      'Syne', sans-serif;
+  --body:      'Lora', serif;
+}
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  font-weight: 400;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NOISE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-repeat: repeat; background-size: 200px 200px; opacity: 0.4;
+}
+
+/* ── GRID BACKDROP ── */
+.grid-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,200,160,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,160,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 100%);
+}
+
+/* ── HEADER ── */
+header {
+  position: relative; z-index: 10;
+  padding: 1.4rem 2.5rem;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(8,12,15,0.85);
+  backdrop-filter: blur(12px);
+}
+
+.logo {
+  display: flex; align-items: baseline; gap: 0.8rem;
+}
+
+.logo-name {
+  font-family: var(--head);
+  font-size: 1.1rem; font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.logo-name span { color: var(--accent); }
+
+.logo-tag {
+  font-family: var(--mono);
+  font-size: 0.6rem; font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  padding: 0.15rem 0.45rem;
+  border-radius: 2px;
+}
+
+.header-meta {
+  display: flex; align-items: center; gap: 1.5rem;
+}
+
+.status-dot {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-family: var(--mono); font-size: 0.65rem;
+  color: var(--muted); letter-spacing: 0.05em;
+}
+
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+.model-badge {
+  font-family: var(--mono); font-size: 0.62rem;
+  color: var(--accent-dim);
+  border: 1px solid var(--accent-dim);
+  padding: 0.2rem 0.6rem; border-radius: 2px;
+  letter-spacing: 0.06em;
+}
+
+/* ── MAIN LAYOUT ── */
+main {
+  position: relative; z-index: 10;
+  max-width: 1100px; margin: 0 auto;
+  padding: 3rem 2rem 4rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* ── PANEL ── */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.panel:hover { border-color: var(--border-hi); }
+
+.panel-header {
+  padding: 0.9rem 1.4rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0.6rem;
+}
+
+.panel-label {
+  font-family: var(--mono);
+  font-size: 0.62rem; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+.panel-num {
+  font-family: var(--mono); font-size: 0.6rem;
+  color: var(--border-hi);
+  margin-left: auto;
+}
+
+.panel-body { padding: 1.5rem; }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: 4px;
+  aspect-ratio: 4/3;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative; overflow: hidden;
+  background: rgba(0,0,0,0.2);
+}
+
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+
+.upload-icon {
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--border-hi);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted);
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.upload-zone:hover .upload-icon {
+  border-color: var(--accent); color: var(--accent);
+}
+
+.upload-hint {
+  font-family: var(--mono); font-size: 0.65rem;
+  color: var(--muted); letter-spacing: 0.04em;
+  text-align: center; line-height: 1.6;
+}
+
+.upload-hint strong { color: var(--text); font-weight: 500; }
+
+#preview-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: none;
+  border-radius: 3px;
+}
+
+/* ── QUESTION INPUT ── */
+.question-wrap {
+  margin-top: 1.2rem;
+  position: relative;
+}
+
+.question-wrap label {
+  display: block;
+  font-family: var(--mono); font-size: 0.62rem;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 0.5rem;
+}
+
+.question-wrap textarea {
+  width: 100%;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--body); font-size: 0.9rem;
+  line-height: 1.6;
+  padding: 0.75rem 1rem;
+  resize: vertical; min-height: 80px;
+  transition: border-color 0.2s;
+  outline: none;
+}
+
+.question-wrap textarea:focus {
+  border-color: var(--accent);
+}
+
+.question-wrap textarea::placeholder { color: var(--muted); }
+
+/* ── SUBMIT BTN ── */
+.btn-analyze {
+  margin-top: 1.2rem; width: 100%;
+  padding: 0.9rem 1rem;
+  background: var(--accent);
+  color: #021a14;
+  border: none; border-radius: 4px;
+  font-family: var(--head); font-size: 0.85rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  position: relative; overflow: hidden;
+}
+
+.btn-analyze::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+
+.btn-analyze:hover { background: #00ddb2; box-shadow: 0 0 20px rgba(0,200,160,0.25); }
+.btn-analyze:hover::after { transform: translateX(100%); }
+.btn-analyze:active { transform: scale(0.99); }
+.btn-analyze:disabled { background: var(--accent-dim); cursor: not-allowed; opacity: 0.6; }
+
+/* ── RESULT PANEL ── */
+.result-idle {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.7rem; padding: 3rem 1rem;
+  color: var(--muted);
+}
+
+.result-idle svg { opacity: 0.25; }
+
+.idle-text {
+  font-family: var(--mono); font-size: 0.65rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  text-align: center; line-height: 1.7;
+}
+
+/* ── LOADING SPINNER ── */
+.loading-wrap {
+  display: none;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1.2rem; padding: 3rem 1rem;
+}
+
+.spinner-ring {
+  width: 44px; height: 44px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-stages {
+  font-family: var(--mono); font-size: 0.65rem;
+  color: var(--muted); letter-spacing: 0.06em;
+  text-align: center; line-height: 2;
+}
+
+.loading-stages span {
+  display: block;
+  opacity: 0.3; transition: opacity 0.4s, color 0.4s;
+}
+
+.loading-stages span.active { opacity: 1; color: var(--accent); }
+.loading-stages span.done { opacity: 0.5; color: var(--text); }
+
+/* ── RESULT CARD ── */
+.result-card {
+  display: none;
+  animation: fadeUp 0.4s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Answer verdict */
+.verdict {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+}
+
+.verdict-answer {
+  font-family: var(--head); font-size: 2rem; font-weight: 800;
+  letter-spacing: -0.02em;
+  transition: color 0.3s;
+}
+
+.verdict-answer.yes { color: var(--yes-color); }
+.verdict-answer.no  { color: var(--no-color); }
+
+.verdict-label {
+  font-family: var(--mono); font-size: 0.6rem;
+  color: var(--muted); letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 0.2rem;
+}
+
+/* Confidence bar */
+.conf-section { padding: 1.2rem 1.4rem; border-bottom: 1px solid var(--border); }
+
+.conf-header {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 0.62rem;
+  color: var(--muted); letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 0.7rem;
+}
+
+.conf-value { color: var(--text); }
+
+.conf-bar-bg {
+  height: 4px; background: var(--border);
+  border-radius: 2px; overflow: hidden;
+}
+
+.conf-bar-fill {
+  height: 100%; border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.8s cubic-bezier(0.22,1,0.36,1);
+  width: 0%;
+}
+
+/* Translation trace */
+.trace-section { padding: 1rem 1.4rem; border-bottom: 1px solid var(--border); }
+
+.trace-label {
+  font-family: var(--mono); font-size: 0.58rem;
+  color: var(--muted); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 0.35rem;
+}
+
+.trace-text {
+  font-family: var(--mono); font-size: 0.72rem;
+  color: var(--border-hi);
+  font-style: italic;
+}
+
+/* Explanation */
+.expl-section { padding: 1.2rem 1.4rem; }
+
+.expl-label {
+  font-family: var(--mono); font-size: 0.58rem;
+  color: var(--muted); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 0.7rem;
+}
+
+.expl-text {
+  font-family: var(--body); font-size: 0.9rem;
+  line-height: 1.75; color: var(--text);
+}
+
+/* inline bold from ** ** markers */
+.expl-text strong { color: var(--accent); font-weight: 500; }
+
+/* ── ERROR BOX ── */
+.error-box {
+  display: none;
+  margin: 1rem 1.4rem;
+  padding: 0.9rem 1rem;
+  background: rgba(224,80,80,0.08);
+  border: 1px solid rgba(224,80,80,0.3);
+  border-radius: 4px;
+  font-family: var(--mono); font-size: 0.72rem;
+  color: var(--danger); line-height: 1.6;
+}
+
+/* ── FOOTER ── */
+footer {
+  position: relative; z-index: 10;
+  border-top: 1px solid var(--border);
+  padding: 1rem 2.5rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.footer-left {
+  font-family: var(--mono); font-size: 0.6rem;
+  color: var(--muted); letter-spacing: 0.06em;
+}
+
+.footer-right {
+  font-family: var(--mono); font-size: 0.6rem;
+  color: var(--border-hi); letter-spacing: 0.06em;
+}
+
+/* ── METRICS ROW (bottom of result) ── */
+.metrics-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--border);
+}
+
+.metric {
+  padding: 0.8rem 1.4rem;
+  border-right: 1px solid var(--border);
+}
+
+.metric:last-child { border-right: none; }
+
+.metric-label {
+  font-family: var(--mono); font-size: 0.57rem;
+  color: var(--muted); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 0.25rem;
+}
+
+.metric-value {
+  font-family: var(--mono); font-size: 0.82rem;
+  color: var(--text); font-weight: 500;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 780px) {
+  main {
+    grid-template-columns: 1fr;
+    padding: 1.5rem 1rem 3rem;
+  }
+  header { padding: 1rem 1.2rem; }
+  .header-meta { gap: 0.8rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<header>
+  <div class="logo">
+    <span class="logo-name">Path<span>VQA</span></span>
+    <span class="logo-tag">TR · v2</span>
+  </div>
+  <div class="header-meta">
+    <div class="status-dot">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">kontrol ediliyor</span>
+    </div>
+    <div class="model-badge">ViT + BERT · Helsinki-NLP</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- LEFT: INPUT PANEL -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-label">Görüntü & Soru</span>
+      <span class="panel-num">01</span>
+    </div>
+    <div class="panel-body">
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept="image/*">
+        <img id="preview-img" alt="Yüklenen görüntü">
+        <div class="upload-icon" id="upload-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="upload-hint" id="upload-hint">
+          <strong>Görüntü seçin</strong><br>
+          PNG · JPG · TIFF
+        </div>
+      </div>
+
+      <div class="question-wrap">
+        <label for="question-input">Türkçe Soru</label>
+        <textarea
+          id="question-input"
+          placeholder="Örn: Bu dokuda nükleer atipi var mı?"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <button class="btn-analyze" id="btn-analyze">
+        Analiz Et
+      </button>
+
+    </div>
+  </div>
+
+  <!-- RIGHT: RESULT PANEL -->
+  <div class="panel" id="result-panel">
+    <div class="panel-header">
+      <span class="panel-label">Analiz Sonucu</span>
+      <span class="panel-num">02</span>
+    </div>
+
+    <!-- Idle state -->
+    <div class="result-idle" id="state-idle">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+      <p class="idle-text">Görüntü ve soru girin<br>analizi başlatın</p>
+    </div>
+
+    <!-- Loading state -->
+    <div class="loading-wrap" id="state-loading">
+      <div class="spinner-ring"></div>
+      <div class="loading-stages" id="loading-stages">
+        <span id="stage-0">Soru Türkçe → İngilizce çeviriliyor</span>
+        <span id="stage-1">Görüntü öznitelikleri çıkarılıyor (ViT)</span>
+        <span id="stage-2">Metin kodlanıyor (BERT)</span>
+        <span id="stage-3">Çok-modal füzyon</span>
+        <span id="stage-4">Açıklama üretiliyor</span>
+      </div>
+    </div>
+
+    <!-- Result state -->
+    <div class="result-card" id="state-result">
+
+      <div class="verdict">
+        <div>
+          <div class="verdict-answer" id="r-answer">—</div>
+          <div class="verdict-label">Model Kararı</div>
+        </div>
+        <svg id="verdict-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4"></svg>
+      </div>
+
+      <div class="conf-section">
+        <div class="conf-header">
+          <span>Güven Skoru</span>
+          <span class="conf-value" id="r-conf">—</span>
+        </div>
+        <div class="conf-bar-bg">
+          <div class="conf-bar-fill" id="r-conf-bar"></div>
+        </div>
+      </div>
+
+      <div class="trace-section">
+        <div class="trace-label">Çevrilen Soru (EN)</div>
+        <div class="trace-text" id="r-translated">—</div>
+      </div>
+
+      <div class="expl-section">
+        <div class="expl-label">Model Açıklaması</div>
+        <div class="expl-text" id="r-explanation">—</div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric">
+          <div class="metric-label">Mimari</div>
+          <div class="metric-value">ViT-B/16 + BERT</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">NLG Motoru</div>
+          <div class="metric-value" id="nlg-engine">lokal · mT5</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Error state -->
+    <div class="error-box" id="state-error">
+      <strong>Hata:</strong> <span id="error-msg"></span>
+    </div>
+
+  </div>
+
+</main>
+
+<footer>
+  <span class="footer-left">PathVQA-TR · Patoloji Görsel Soru-Cevap · Lokal İnferans</span>
+  <span class="footer-right" id="footer-acc">val_acc 86.34 · train_acc 95.19</span>
+</footer>
+
+<script>
+// ── Health Check ──
+async function checkHealth() {
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    if (d.model_loaded) {
+      dot.className = 'dot online';
+      txt.textContent = 'model hazır';
+    } else {
+      dot.className = 'dot offline';
+      txt.textContent = 'model yüklenmedi';
+    }
+  } catch {
+    document.getElementById('status-dot').className = 'dot offline';
+    document.getElementById('status-text').textContent = 'bağlantı yok';
+  }
+}
+checkHealth();
+
+// ── Upload Zone ──
+const fileInput = document.getElementById('file-input');
+const uploadZone = document.getElementById('upload-zone');
+const previewImg = document.getElementById('preview-img');
+const uploadIcon = document.getElementById('upload-icon');
+const uploadHint = document.getElementById('upload-hint');
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  previewImg.src = url;
+  previewImg.style.display = 'block';
+  uploadIcon.style.display = 'none';
+  uploadHint.style.display = 'none';
+});
+
+uploadZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadZone.classList.add('drag-over');
+});
+
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    previewImg.style.display = 'block';
+    uploadIcon.style.display = 'none';
+    uploadHint.style.display = 'none';
+  }
+});
+
+// ── Loading stages animation ──
+let stageTimer = null;
+
+function animateStages() {
+  const stages = document.querySelectorAll('#loading-stages span');
+  let current = 0;
+  stages.forEach(s => { s.className = ''; });
+  stages[0].className = 'active';
+
+  stageTimer = setInterval(() => {
+    if (current < stages.length) stages[current].className = 'done';
+    current++;
+    if (current < stages.length) {
+      stages[current].className = 'active';
+    } else {
+      clearInterval(stageTimer);
+    }
+  }, 900);
+}
+
+function clearStages() {
+  if (stageTimer) clearInterval(stageTimer);
+  document.querySelectorAll('#loading-stages span').forEach(s => s.className = '');
+}
+
+// ── State helpers ──
+function showState(name) {
+  document.getElementById('state-idle').style.display    = 'none';
+  document.getElementById('state-loading').style.display = 'none';
+  document.getElementById('state-result').style.display  = 'none';
+  document.getElementById('state-error').style.display   = 'none';
+
+  if (name === 'idle')    document.getElementById('state-idle').style.display    = 'flex';
+  if (name === 'loading') document.getElementById('state-loading').style.display = 'flex';
+  if (name === 'result')  document.getElementById('state-result').style.display  = 'block';
+  if (name === 'error')   document.getElementById('state-error').style.display   = 'block';
+}
+
+// ── Render bold markers ──
+function renderBold(text) {
+  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+// ── Submit ──
+document.getElementById('btn-analyze').addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  const question = document.getElementById('question-input').value.trim();
+
+  if (!file) { alert('Lütfen bir görüntü seçin.'); return; }
+  if (!question) { alert('Lütfen soru girin.'); return; }
+
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  showState('loading');
+  animateStages();
+
+  try {
+    const fd = new FormData();
+    fd.append('image', file);
+    fd.append('question', question);
+
+    const res = await fetch('/predict', { method: 'POST', body: fd });
+    clearStages();
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Sunucu hatası' }));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    renderResult(data);
+    showState('result');
+
+  } catch (err) {
+    clearStages();
+    document.getElementById('error-msg').textContent = err.message;
+    showState('error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function renderResult(data) {
+  const answerEl = document.getElementById('r-answer');
+  const isYes = data.answer.toLowerCase() === 'yes';
+
+  answerEl.textContent = isYes ? 'EVET' : 'HAYIR';
+  answerEl.className = 'verdict-answer ' + (isYes ? 'yes' : 'no');
+
+  // verdict icon
+  const icon = document.getElementById('verdict-icon');
+  if (isYes) {
+    icon.innerHTML = `<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>`;
+    icon.style.stroke = 'var(--yes-color)';
+  } else {
+    icon.innerHTML = `<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>`;
+    icon.style.stroke = 'var(--no-color)';
+  }
+
+  // confidence
+  const pct = Math.round(data.confidence * 100);
+  document.getElementById('r-conf').textContent = `%${pct}`;
+  setTimeout(() => {
+    document.getElementById('r-conf-bar').style.width = pct + '%';
+  }, 50);
+
+  // dynamic bar color
+  const bar = document.getElementById('r-conf-bar');
+  if (pct >= 80) bar.style.background = 'var(--yes-color)';
+  else if (pct >= 55) bar.style.background = 'var(--warn)';
+  else bar.style.background = 'var(--danger)';
+
+  // translated
+  document.getElementById('r-translated').textContent = data.translated_question || '—';
+
+  // explanation (render **bold**)
+  document.getElementById('r-explanation').innerHTML = renderBold(data.explanation || '—');
+}
+</script>
+</body>
+</html>
