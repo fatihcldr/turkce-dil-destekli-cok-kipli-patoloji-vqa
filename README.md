@@ -30,7 +30,6 @@ Kullanici goruntü + Türkçe soru
 
 Encoder'lar freeze tutulur. Sadece MLP fusion eğitilir.
 Sonrasında Fine tuning yaparak eğitilir.
-Bu sayede RTX 4060 (8GB) ve Kaggle T4 üzerinde 1-2 saatte eğitim tamamlanır.
 
 ## Klasör Yapısı
 
